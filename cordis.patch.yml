@@ -1,0 +1,15 @@
+# DeepSeek Harness profile layer for dsh-logseq-sync.
+#
+# `dsh plugin --profile <name> add dsh-logseq-sync` installs this package and, because
+# package.json declares `dsh.bundle.patch`, appends this file to the profile's bundle list.
+# The row mounts on the host plane so the sync daemon runs once per dsh process and the
+# tools reach every session.
+#
+# Configuration lives OUTSIDE dsh, in ~/.dsh/logseq/config.json (see README). To disable for
+# one profile without uninstalling, patch this row in the profile's own cordis.patch.yml:
+#
+#   - id: logseq-sync
+#     disabled: true
+- insert:
+    - id: logseq-sync
+      name: "dsh-logseq-sync"

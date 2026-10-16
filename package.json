@@ -1,0 +1,40 @@
+{
+  "name": "dsh-logseq-sync",
+  "version": "0.1.0",
+  "description": "DeepSeek Harness plugin: run the Logseq 2.0 CLI headlessly inside dsh, keep DB graphs (incl. E2EE) synced with a Logseq sync server, and expose read/write tools to the agent.",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "runtime-shims",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "test": "node --test test/"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek",
+    "harness",
+    "logseq"
+  ],
+  "license": "AGPL-3.0-or-later",
+  "dependencies": {
+    "ws": "8.22.0"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}
