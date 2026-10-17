@@ -13,8 +13,23 @@ agent ──logseq_* 工具──> logseq CLI ──> db-worker-node（每个图
 ```
 
 - 首次加载时下载官方 Linux 发行包（约 180MB，只下载一次），从 `app.asar` 里取出 `js/logseq-cli.js` 和 `js/db-worker-node.js` 两个纯 JS 文件，放到 `~/.dsh/logseq/runtime/<版本>/`。原生模块一个都不用：`keytar` 换成文件实现的桩，`ws` 用插件自带的依赖。
-- 同步守护：图谱本地没有就 `sync download`，然后 `sync start`；之后每 60s 检查一次 `sync status`，websocket 没连上就重启，失败时指数退避（最长 15 分钟）。
+- 同步守护：没配 `graphs` 时同步服务器上的全部图谱；图谱本地没有就 `sync download`，然后 `sync start`；之后每 60s 检查一次 `sync status`，websocket 没连上就重启，失败时指数退避（最长 15 分钟）。
 - 工具写的是本地副本，由同一个 worker 推送到服务器。
+- `dsh web` 的设置里会多出一栏 **Logseq**，在页面里填账号、同步服务器、图谱和 E2EE 密码（见下文“设置页”）。
+
+## 设置页
+
+需要 dsh web 0.2.x。打开 dsh web 的 **设置 → Logseq**，一页填完：
+
+- **Logseq 账号**：邮箱和密码，只在未登录时显示。插件调用 CLI 的 `login` 换取 `auth.json`，密码本身不保存。
+- **同步服务器**：自建同步服务器的地址。
+- **E2EE 密码**：加密图谱需要；留空表示沿用已保存的。
+
+不用选图谱：默认同步账号在服务器上的全部图谱，新建的图谱在下一次健康检查时自动加入，agent 用 `graph` 参数选图谱。只想同步部分图谱时在 `config.json` 里写 `graphs`，设置页会提示并提供“改为同步全部”。
+
+保存后立即按新设置开始同步，不用重启 dsh，设置写入 `config.json`，下方显示每个图谱的同步状态。首次打开这一页时会在后台下载运行时（约 180MB），设置了 `runtimeAsar` 时只做解压。
+
+接口在 `/dsh-logseq/api/*`，每个请求都先过 dsh 自己的请求门禁（和 dsh 的 `/api` 一样要求 dsh web 已登录）；写操作还要求同源的 JSON POST。宿主没有门禁服务时只接受本机访问。
 
 ## 安装
 
@@ -66,7 +81,7 @@ agent ──logseq_* 工具──> logseq CLI ──> db-worker-node（每个图
 | `not linked to a remote graph` | 本地有一个同名但从没关联过远端的图谱。删掉 `$D/logseq/graphs/<名>` 后重启 |
 | zsh 里 `sudo ls $D/*` 报 no matches | `$D` 的权限是 700，通配符在 sudo 之前由当前用户展开，所以匹配不到。改用 `sudo sh -c 'ls $D/*'` |
 
-停用：在 `config.json` 里设 `"sync": false`，工具就只操作本地副本，不再同步；或者从 `DSH_PLUGINS` 里删掉这个插件，再执行 `dsh plugin --profile web remove dsh-logseq-sync`（这条命令还没验证过）。
+停用：在 `config.json` 里设 `"sync": false`，工具就只操作本地副本，不再同步；或者从 `DSH_PLUGINS` 里删掉这个插件，再执行 `dsh plugin --profile web remove dsh-logseq-sync`。
 
 ## 配置项（config.json）
 
@@ -74,7 +89,7 @@ agent ──logseq_* 工具──> logseq CLI ──> db-worker-node（每个图
 |---|---|---|
 | `server` | — | 同步服务器地址；不填就不同步，工具只操作本地图谱 |
 | `wsUrl` | `wss://<server>/sync/%s` | websocket 地址模板 |
-| `graphs` | `[]` | 要同步的图谱；第一个是工具的默认图谱 |
+| `graphs` | 全部 | 要同步的图谱；不填就同步服务器上的全部图谱。第一个是工具的默认图谱 |
 | `e2eePassword` | — | 加密图谱的密码 |
 | `oauthTokenEndpoint` | Logseq 官方 Cognito | 续期 token 的地址。插件会把它写进 CLI 的 `cli.edn`，否则 CLI 会去请求 `<server>/oauth2/token`，自建服务器上是 404 |
 | `readOnly` | `false` | 只注册读工具 |
@@ -95,4 +110,5 @@ agent ──logseq_* 工具──> logseq CLI ──> db-worker-node（每个图
 - 内存：每个同步图谱一个 worker，实测约 190MB（图谱 1.8MB 时）。2GB 内存的机器上，同步的图谱数要控制住。
 - 本地已有、但从没关联过远端的同名图谱，插件不会同步，以免把它当新图谱上传。
 - CLI 用法上的坑：属性必须先用 `logseq_upsert_property` 建好才能赋值；`blocks` 里写的 `#标签` 必须是已存在的标签；用 `id` 改写块内容会丢掉这个块原有的 `[[引用]]`。
+- 安全（设置页）：设置页能登录 Logseq 账号、改同步设置和 E2EE 密码，能打开 dsh web 的人就能做这些事。dsh web 暴露在公网时，务必保持 dsh 自带的登录开启。
 - 许可证：AGPL-3.0-or-later。运行时提取自 Logseq（AGPL-3.0）。
